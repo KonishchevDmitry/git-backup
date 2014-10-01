@@ -136,26 +136,36 @@ def _rm_path(path):
 
 
 def _get_user_repositories(user):
+    repos = set()
+    max_pages = 100
     url = "https://api.github.com/users/{user}/repos".format(user=user)
 
-    try:
-        response = requests.get(url, timeout=30)
-        if response.status_code != requests.codes.ok:
-            raise Error(response.reason)
-
+    for page in range(1, max_pages + 1):
         try:
-            if response.headers.get("Content-Type") == "application/json":
-                raise ValueError
+            response = requests.get(url, params={"page": page}, timeout=30)
+            if response.status_code != requests.codes.ok:
+                raise Error(response.reason)
 
-            repositories = response.json()
-            if not isinstance(repositories, list):
-                raise ValueError
-        except ValueError:
-            raise Error("Server returned an invalid response.")
-    except (requests.RequestException, Error) as e:
-        raise Error("Failed to get a list of user repositories from {}: {}", url, e)
+            try:
+                if response.headers.get("Content-Type") == "application/json":
+                    raise ValueError
 
-    return list(set(repository["name"] for repository in repositories))
+                repos_info = response.json()
+                if not isinstance(repos_info, list):
+                    raise ValueError
+            except ValueError:
+                raise Error("Server returned an invalid response.")
+        except (requests.RequestException, Error) as e:
+            raise Error("Failed to get a list of user repositories from {}: {}", url, e)
+
+        if not repos_info:
+            break
+
+        repos.update(repo_info["name"] for repo_info in repos_info)
+    else:
+        log.error("Got too many repositories from {} (>{} pages). Skip the rest of pages.", url, page)
+
+    return list(repos)
 
 
 def _mirror_repo(name, url, backup_dir):

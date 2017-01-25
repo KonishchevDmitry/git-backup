@@ -28,7 +28,7 @@ def get_requirements():
 if __name__ == "__main__":
     setup(
         name="git-backup",
-        version="0.1.1",
+        version="0.1.2",
 
         description="Script for backing up GitHub repositories",
         long_description=get_description(),
